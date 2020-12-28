@@ -1,0 +1,26 @@
+{
+  "name": "wikipedia",
+  "version": "1.0.0",
+  "description": "The wikipedia game",
+  "main": "main.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Phocacius/Wikipedia-Spiel.git"
+  },
+  "author": "Thorsten Hack",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Phocacius/Wikipedia-Spiel/issues"
+  },
+  "homepage": "https://github.com/Phocacius/Wikipedia-Spiel#readme",
+  "dependencies": {
+    "jquery": "^3.5.1",
+    "twig": "^1.15.4"
+  }
+}

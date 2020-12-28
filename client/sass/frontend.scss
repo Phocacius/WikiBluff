@@ -1,0 +1,217 @@
+$gold: #9F8F69;
+$lightGold: #DBB96F;
+$darkGold: #887242;
+$grayish: #F5EAD1;
+$neutralText: #A2A2A2;
+$darkGray: #262626;
+$boxBackground: #1A1A18;
+$joinBackground: #2C2121;
+$boxRadius: 5px;
+$font-family-base: 'Montserrat Alternates', sans-serif;
+$font-family-monospace: 'Poiret One', cursive;
+
+@import "bootstrap";
+@import "loading";
+
+
+body {
+  background: url("../img/bg.svg");
+  color: $white;
+}
+
+h1 {
+  font-size: 3rem;
+}
+
+h2 {
+  font-family: $font-family-monospace;
+  color: $lightGold;
+  font-size: 2rem;
+}
+
+p {
+  text-align: center;
+}
+
+a {
+  font-weight: bold;
+  color: white;
+
+  &:hover {
+    color: $lightGold;
+  }
+}
+
+.btn {
+  transition: all 500ms;
+}
+
+.btn-primary {
+  background: $darkGold;
+  border: 1px solid $lightGold;
+  box-sizing: border-box;
+
+  &:hover {
+    background: $lightGold;
+    color: $black;
+    border: 1px solid $darkGold;
+    font-weight: bold;
+  }
+}
+
+.btn-secondary {
+  background: $black;
+  box-sizing: border-box;
+  color: $lightGold;
+  border: 1px solid $lightGold;
+
+
+  &:hover {
+    border: 1px solid $lightGold;
+    background: $darkGold;
+    font-weight: bold;
+  }
+}
+
+.container {
+  padding: 3rem 16px;
+  background: $black;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+}
+
+.heading-container {
+  background: $boxBackground;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  width: 100%;
+  padding: 16px;
+  max-width: 100%;
+  margin: 7rem auto 3rem;
+
+  @include media-breakpoint-up(sm) {
+    width: 500px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    text-align: center;
+  }
+
+}
+
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: -3rem;
+}
+
+.new-game {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.guesser-faker-container {
+  padding: 16px;
+  background: $darkGray;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  margin-bottom: 16px;
+}
+
+.join-container {
+  padding: 16px;
+  background: $joinBackground;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  margin-bottom: 10px;
+
+  .btn {
+    margin-top: 8px;
+  }
+}
+
+.flex-item {
+
+  h3 {
+    text-align: center;
+  }
+
+  @include media-breakpoint-up(sm) {
+    width: 40%;
+    margin-left: 5%;
+    margin-top: 5%;
+  }
+}
+
+$guesserFakerPadding: 4px;
+
+.guessers {
+  list-style: none;
+  padding: 0 4px;
+
+  li {
+    padding-top: $guesserFakerPadding;
+    padding-bottom: $guesserFakerPadding;
+    padding-left: 0;
+    color: $lightGold;
+  }
+}
+
+.fakers {
+  list-style: none;
+  padding: 0 4px;
+
+  li {
+    color: $lightGold;
+    padding-top: $guesserFakerPadding;
+    padding-bottom: $guesserFakerPadding;
+    padding-left: 12px;
+    position: relative;
+
+    &:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      display: block;
+      background: $lightGold;
+      width: 3px;
+      height: 24px;
+
+    }
+  }
+}
+
+.text-center {
+  display: block;
+  margin: auto;
+}
+
+.form-control, .form-control:hover, .form-control:active, .form-control:focus, .form-control[readonly] {
+  background: $darkGray;
+  color: $white;
+  border: 1px solid $lightGold;
+}
+
+label {
+  font-variant: small-caps;
+  text-align: center;
+  width: 100%;
+  color: $lightGold;
+  font-size: 1rem;
+}
+
+.description {
+  font-size: 0.8rem;
+  color: #bbb;
+  display: block;
+  line-height: 1rem;
+  margin-bottom: 6px;
+  margin-top: 8px;
+
+  &:last-of-type {
+    margin-bottom: 20px;
+  }
+}

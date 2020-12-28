@@ -8,12 +8,14 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import kotlin.reflect.KClass
 
 
-/**
- * A simple WebSocketServer implementation. Keeps track of a "chatroom".
- */
-class ChatServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
+class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
+
+    init {
+        isReuseAddr = true
+    }
 
     val games = HashMap<String, Game>()
     val connections = HashMap<WebSocket, Game>()
@@ -23,7 +25,7 @@ class ChatServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         @JvmStatic
         fun main(args: Array<String>) {
             val port = 1337
-            val server = ChatServer(port)
+            val server = WikiBluffServer(port)
             server.start()
             println("ChatServer started on port: " + server.port)
         }
@@ -38,113 +40,130 @@ class ChatServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
 
         val game = connections[conn] ?: return
         game.clients.remove(conn)
+        connections.remove(conn)
 
         sendUpdate(game)
     }
 
-    override fun onMessage(conn: WebSocket, message: String) {
-        broadcast(message)
-        println("$conn: $message")
+    override fun onMessage(conn: WebSocket, msg: ByteBuffer) {
+        onMessage(conn, msg.array().toString(Charset.forName("UTF-8")))
     }
 
-    override fun onMessage(conn: WebSocket, msg: ByteBuffer) {
+    override fun onMessage(conn: WebSocket, msg: String) {
         println("$conn: $msg")
-        val message = JSONObject(msg.array().toString(Charset.forName("UTF-8")))
-        when (message.getString("action")) {
-            "joinFakers" -> join(message, conn, true)
-            "joinGuessers" -> join(message, conn, false)
+        try {
+            val message = JSONObject(msg)
+            when (message.getString("action")) {
+                "status" -> join(message, conn, Spectator::class)
+                "joinFakers" -> join(message, conn, Faker::class)
+                "joinGuessers" -> join(message, conn, Guesser::class)
 
-            "setName" -> {
-                connections[conn]?.let { game ->
-                    game.clients[conn]?.name = message.getString("name")
-                    sendUpdate(game)
+                "setName" -> {
+                    connections[conn]?.let { game ->
+                        (game.clients[conn] as? Player)?.name = message.getString("name")
+                        sendUpdate(game)
+                    }
                 }
-            }
-            "setWord" -> {
-                connections[conn]?.let { game ->
-                    (game.clients[conn] as? Faker)?.word = message.getString("word")
+                "setWord" -> {
+                    connections[conn]?.let { game ->
+                        (game.clients[conn] as? Faker)?.word = message.getString("word")
+                    }
                 }
-            }
-            "setReady" -> {
-                connections[conn]?.let { game ->
-                    val client = game.clients[conn] as? Faker ?: return@let
-                    client.isReady = message.getBoolean("ready")
-                    val readyToPlay = game.fakers.size >= 2 && game.fakers.all { it.isReady }
-                    game.phase = if (readyToPlay) GamePhase.READY_TO_PLAY else GamePhase.INITIAL
-                    sendUpdate(game)
+                "setReady" -> {
+                    connections[conn]?.let { game ->
+                        val client = game.clients[conn] as? Faker ?: return@let
+                        client.isReady = message.getBoolean("ready")
+                        val readyToPlay = game.fakers.size >= 2 && game.fakers.all { it.isReady }
+                        game.phase = if (readyToPlay) GamePhase.READY_TO_PLAY else GamePhase.INITIAL
+                        sendUpdate(game)
+                    }
                 }
-            }
-            "startRound" -> {
-                connections[conn]?.let { game ->
-                    if (game.phase == GamePhase.READY_TO_PLAY) {
-                        val words = game.fakers.mapNotNull { it.word }
-                        if (words.isEmpty()) {
-                            sendWarning("Kein Faker hat ein Wort gewählt.", game)
-                            game.fakers.forEach { it.isReady = false }
+                "startRound" -> {
+                    connections[conn]?.let { game ->
+                        if (game.phase == GamePhase.READY_TO_PLAY) {
+                            val words = game.fakers.mapNotNull { it.word }
+                            if (words.isEmpty()) {
+                                sendWarning("Kein Faker hat ein Wort gewählt.", game)
+                                game.fakers.forEach { it.isReady = false }
+                                sendUpdate(game)
+                                return@let
+                            }
+
+                            game.chosenFaker = game.fakers.random()
+                            game.phase = GamePhase.GUESSING
                             sendUpdate(game)
-                            return@let
                         }
-
-                        game.chosenFaker = game.fakers.random()
-                        game.phase = GamePhase.GUESSING
-                        sendUpdate(game)
                     }
                 }
-            }
-            "startVoting" -> {
-                connections[conn]?.let { game ->
-                    if (game.phase == GamePhase.GUESSING) {
-                        game.phase = GamePhase.READY_TO_VOTE
-                    }
-                }
-            }
-            "vote" -> {
-                connections[conn]?.let { game ->
-                    (game.clients[conn] as? Guesser)?.let { guesser ->
-                        guesser.vote = game.fakers.find { it.id == message.getString("vote") }
-                        if (game.guessers.all { it.vote != null }) {
-                            game.phase = GamePhase.REVELATION
+                "startVoting" -> {
+                    connections[conn]?.let { game ->
+                        if (game.phase == GamePhase.GUESSING) {
+                            game.phase = GamePhase.READY_TO_VOTE
                         }
-                        sendUpdate(game)
+                    }
+                }
+                "vote" -> {
+                    connections[conn]?.let { game ->
+                        (game.clients[conn] as? Guesser)?.let { guesser ->
+                            guesser.vote = game.fakers.find { it.id == message.getString("vote") }
+                            if (game.guessers.all { it.vote != null }) {
+                                game.phase = GamePhase.REVELATION
+                            }
+                            sendUpdate(game)
+                        }
+                    }
+                }
+                "restart" -> {
+                    connections[conn]?.let { game ->
+                        game.phase = GamePhase.INITIAL
+                        game.guessers.forEach {
+                            it.vote = null
+                        }
+                        game.fakers.forEach {
+                            it.vote = null
+                            it.isReady = false
+                        }
                     }
                 }
             }
-            "restart" -> {
-                connections[conn]?.let { game ->
-                    game.phase = GamePhase.INITIAL
-                    game.guessers.forEach {
-                        it.vote = null
-                    }
-                    game.fakers.forEach {
-                        it.vote = null
-                        it.isReady = false
-                    }
-                }
-            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            sendWarning(e.localizedMessage, conn)
         }
     }
 
-    private fun join(message: JSONObject, conn: WebSocket, faker: Boolean) {
-        val gameId = message.getString("gameId")
+    private fun join(message: JSONObject, conn: WebSocket, role: KClass<out GameSubscriber>) {
+        val gameId = message.getString("game")
         //val id = message.getString("id")
-        val name = message.getString("name")
+        val name = message.getOptionalString("name")
+        val word = message.getOptionalString("word")
 
         connections[conn]?.let { game ->
             if (games[gameId] == game) {
                 game.clients[conn]?.let { client ->
-                    client.name = name
-                    val value = if(faker) client.toFaker() else client.toGuesser()
+                    val value = when (role) {
+                        Faker::class -> client.toFaker()
+                        Guesser::class -> client.toGuesser()
+                        else -> client
+                    }
+                    name?.let { (value as? Player)?.name = name }
+                    word?.let { (value as? Faker)?.word = word }
+
                     game.clients.put(conn, value)
                 }
-                sendUpdate(game)
+                if (role == Spectator::class) sendUpdate(game, conn) else sendUpdate(game)
                 return
             } else {
-                game.clients.remove(conn)
-                sendUpdate(game)
+                val removed = game.clients.remove(conn)
+                if (!(removed is Spectator)) sendUpdate(game)
             }
         }
 
-        val player = if(faker) Faker(name) else Guesser(name)
+        val player = when (role) {
+            Faker::class -> Faker(name ?: "")
+            Guesser::class -> Guesser(name ?: "")
+            else -> Spectator()
+        }
         val game = games.getOrPut(gameId) { Game() }
         game.clients.put(conn, player)
         connections.put(conn, game)
@@ -158,6 +177,13 @@ class ChatServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         broadcast(warning.toString(), game.clients.keys)
     }
 
+    private fun sendWarning(message: String, conn: WebSocket) {
+        val warning = JSONObject()
+        warning.put("action", "warning")
+        warning.put("message", message)
+        conn.send(warning.toString())
+    }
+
     override fun onError(conn: WebSocket?, ex: Exception) {
         ex.printStackTrace()
         if (conn != null) {
@@ -165,8 +191,12 @@ class ChatServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         }
     }
 
-    private fun sendUpdate(game: Game) {
-        broadcast(game.stateJson, game.clients.keys)
+    private fun sendUpdate(game: Game, conn: WebSocket? = null) {
+        if (conn == null) {
+            broadcast(game.stateJson, game.clients.keys)
+        } else {
+            conn.send(game.stateJson)
+        }
     }
 
     override fun onStart() {
