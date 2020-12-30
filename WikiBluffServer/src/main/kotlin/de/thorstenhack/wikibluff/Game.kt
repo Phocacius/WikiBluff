@@ -1,14 +1,12 @@
 package de.thorstenhack.wikibluff
 
-import org.java_websocket.WebSocket
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.*
-import kotlin.collections.HashMap
+import java.util.UUID
+import kotlin.collections.ArrayList
 
-class Game {
-    val clients = HashMap<WebSocket, GameSubscriber>()
-    val inactivePlayers = ArrayList<Player>()
+class Game(val id: String) {
+    var clients = ArrayList<GameSubscriber>()
     var phase = GamePhase.PREPARE
     var chosenFaker: Faker? = null
     var wikipediaLink: String? = null
@@ -36,7 +34,10 @@ class Game {
 
                         if (phase == GamePhase.REVELATION) {
                             put("wasChosen", chosenFaker == faker)
-                            put("votedFor", players.asSequence().filter { it.vote == faker }.sortedBy { it.name }.map { it.name })
+                            put("votedFor", players.asSequence()
+                                .filter { it.vote == faker }
+                                .sortedBy { it.name }.map { it.name }
+                                .toList())
                         }
                     }
                 }
@@ -48,9 +49,9 @@ class Game {
             }
         }
 
-    val fakers: List<Faker> get() = clients.values.union(inactivePlayers).mapNotNull { it as? Faker }
-    val guessers: List<Guesser> get() = clients.values.union(inactivePlayers).mapNotNull { it as? Guesser }
-    val players: List<Player> get() = clients.values.union(inactivePlayers).mapNotNull { it as? Player }
+    val fakers: List<Faker> get() = clients.mapNotNull { it as? Faker }
+    val guessers: List<Guesser> get() = clients.mapNotNull { it as? Guesser }
+    val players: List<Player> get() = clients.mapNotNull { it as? Player }
 }
 
 enum class GamePhase {
