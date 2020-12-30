@@ -18,6 +18,16 @@ module.exports = Twig.twig({
         </div>
     
         <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+    {% elseif canVote == false %}
+        <p>Als Zuschauer kannst du nicht abstimmen.</p>
+    
+        <div class="votes">
+            {% for faker in fakers %}
+                <div class="btn btn-large btn-secondary btn-non-clickable">{{ faker.name }}</div>
+            {% endfor %}
+        </div>
+    
+        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
     {% else %}
         <h4>Wer sagt die Wahrheit?</h4>
         <div class="votes">

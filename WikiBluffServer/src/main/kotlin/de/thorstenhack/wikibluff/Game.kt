@@ -2,15 +2,14 @@ package de.thorstenhack.wikibluff
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
+import java.util.*
 import kotlin.collections.ArrayList
 
 class Game(val id: String) {
     var clients = ArrayList<GameSubscriber>()
     var phase = GamePhase.PREPARE
     var chosenFaker: Faker? = null
-    var wikipediaLink: String? = null
-    var wikipediaText: String? = null
+    var wikipedia = ArrayList<WikipediaRef>()
 
     val stateJson: JSONObject
         get() = JSONObject().apply {
@@ -46,6 +45,13 @@ class Game(val id: String) {
             if (phase.ordinal >= GamePhase.GUESSING.ordinal) {
                 put("word", chosenFaker?.word)
                 put("votesRemaining", players.filter { it != chosenFaker }.count { it.vote == null })
+            }
+
+            if (phase == GamePhase.REVELATION) {
+                put("wikipedia", wikipedia.map { JSONObject().apply {
+                    put("link", it.link)
+                    put("text", it.text)
+                } })
             }
         }
 
@@ -110,3 +116,5 @@ class Faker(name: String) : Player(name) {
     var word: String? = null
     var voteId: String = UUID.randomUUID().toString()
 }
+
+class WikipediaRef(val link: String, val text: String)

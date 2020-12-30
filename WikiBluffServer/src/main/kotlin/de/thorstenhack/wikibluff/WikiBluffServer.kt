@@ -78,6 +78,11 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                 }
                 "startRound" -> {
                     connections[conn]?.let { connectionInfo ->
+                        if (connectionInfo.client !is Player) {
+                            sendWarning("Als Zuschauer kannst du die Runde nicht starten.", conn)
+                            return
+                        }
+
                         val game = connectionInfo.game
                         if (game.fakers.size < 2) {
                             sendWarning("Es müssen mindestens zwei Faker mitspielen!", conn)
@@ -94,12 +99,29 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                             game.chosenFaker = fakersWithWords.random()
                             game.phase = GamePhase.GUESSING
                             sendUpdate(game)
-                            retrieveWikipediaContent(game)
+                            Thread {
+                                try {
+                                    retrieveWikipediaContent(game, "de")?.let { game.wikipedia.add(it) }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+
+                                try {
+                                    retrieveWikipediaContent(game, "en")?.let { game.wikipedia.add(it) }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }.start()
                         }
                     }
                 }
                 "finishVoting" -> {
                     connections[conn]?.let { connectionInfo ->
+                        if (connectionInfo.client !is Player) {
+                            sendWarning("Als Zuschauer kannst du die Runde nicht beenden.", conn)
+                            return
+                        }
+
                         val game = connectionInfo.game
                         if (game.phase == GamePhase.GUESSING) {
                             game.phase = GamePhase.REVELATION
@@ -126,8 +148,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                         val websockets = connectionsInv[game.id]
                         game.clients = ArrayList(websockets?.mapNotNull { connections[it]?.client } ?: listOf())
                         game.chosenFaker = null
-                        game.wikipediaLink = null
-                        game.wikipediaText = null
+                        game.wikipedia.clear()
                         game.players.forEach {
                             it.vote = null
                         }
@@ -141,16 +162,28 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         }
     }
 
-    private fun retrieveWikipediaContent(game: Game) {
-        return
-        // TODO
+    private fun retrieveWikipediaContent(game: Game, language: String): WikipediaRef? {
         val url = UrlUtil.loadUrl(
-            "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&titles="
-                    + UrlUtil.encodeURIComponent(game.chosenFaker?.word)
+            "https://${language}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&titles="
+                    + UrlUtil.encodeURIComponent(game.chosenFaker?.word) + "&redirects"
         )
         val json = JSONObject(url)
-
-
+        val pages = json.getJSONObject("query").getJSONObject("pages")
+        val key = pages.keys().takeIf { it.hasNext() }?.next()
+        if (key != null) {
+            val page = pages.getJSONObject(key)
+            if (page.has("missing")) return null;
+            if (page.has("extract")) {
+                val link =
+                    "https://${language}.wikipedia.org/wiki/${UrlUtil.encodeURIComponent(page.getString("title"))}"
+                var extract = page.getString("extract")
+                if (extract.length > 750) {
+                    extract = extract.substring(0, 750) + "…"
+                }
+                return WikipediaRef(link, extract)
+            }
+        }
+        return null;
     }
 
     private fun join(message: JSONObject, conn: WebSocket, role: KClass<out GameSubscriber>) {
@@ -192,11 +225,20 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
             }
         }
 
-        val player = when (role) {
+        val player = if (game.phase == GamePhase.GUESSING) {
+            if (role != Spectator::class) {
+                sendWarning(
+                    "Das Spiel läuft bereits. Du bist jetzt Zuschauer, kannst aber nächste Runde einsteigen",
+                    conn
+                )
+            }
+            Spectator()
+        } else when (role) {
             Faker::class -> Faker(name ?: "")
             Guesser::class -> Guesser(name ?: "")
             else -> Spectator()
         }
+
         name?.let { (player as? Player)?.name = name }
         word?.let { (player as? Faker)?.word = word }
 
@@ -245,6 +287,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                     val player = connections[websocket]?.client as? Player
                     json.put("vote", player?.vote?.voteId)
                     json.put("ownWord", game.chosenFaker == player)
+                    json.put("canVote", player != null)
                     println("[OUTGOING] $json")
                     websocket.send(json.toString())
                 }

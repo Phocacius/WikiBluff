@@ -23,8 +23,10 @@ module.exports = Twig.twig({
         {% endfor %}
     </div>
     
-    <p>{{ wikipediaText }}</p>
-    <p><a href="{{ wikipediaLink }}" target="_blank">Artikel lesen</a></p>
+    {% for wiki in wikipedia %}
+    <p>{{ wiki.text }}</p>
+    <p><a href="{{ wiki.link }}" target="_blank">Artikel lesen</a></p>
+    {% endfor %}
 
     <button class="btn btn-primary btn-lg text-center js-restart">Neue Runde</button>
 </div>

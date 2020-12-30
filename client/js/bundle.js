@@ -20722,8 +20722,10 @@ module.exports = Twig.twig({
         {% endfor %}
     </div>
     
-    <p>{{ wikipediaText }}</p>
-    <p><a href="{{ wikipediaLink }}" target="_blank">Artikel lesen</a></p>
+    {% for wiki in wikipedia %}
+    <p>{{ wiki.text }}</p>
+    <p><a href="{{ wiki.link }}" target="_blank">Artikel lesen</a></p>
+    {% endfor %}
 
     <button class="btn btn-primary btn-lg text-center js-restart">Neue Runde</button>
 </div>
@@ -20742,6 +20744,16 @@ module.exports = Twig.twig({
 
     {% if ownWord == true %}
         <p>Dein Wort wurde gewählt, du kannst nicht abstimmen.</p>
+    
+        <div class="votes">
+            {% for faker in fakers %}
+                <div class="btn btn-large btn-secondary btn-non-clickable">{{ faker.name }}</div>
+            {% endfor %}
+        </div>
+    
+        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+    {% elseif canVote == false %}
+        <p>Als Zuschauer kannst du nicht abstimmen.</p>
     
         <div class="votes">
             {% for faker in fakers %}
