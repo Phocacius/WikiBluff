@@ -253,7 +253,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         user.json?.let {
             it.put("action", "userState")
             it.put("game", gameId)
-            println("[OUTGOING] $it")
+            // println("[OUTGOING] $it")
             conn.send(it.toString())
         }
     }
@@ -288,11 +288,11 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                     json.put("vote", player?.vote?.voteId)
                     json.put("ownWord", game.chosenFaker == player)
                     json.put("canVote", player != null)
-                    println("[OUTGOING] $json")
+                    // println("[OUTGOING] $json")
                     websocket.send(json.toString())
                 }
             } else {
-                println("[OUTGOING] ${game.stateJson}")
+                // println("[OUTGOING] ${game.stateJson}")
                 broadcast(game.stateJson.toString(), connectionsInv[game.id]?.filter { it.isOpen })
             }
         } else {
@@ -300,7 +300,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
             val player = connections[conn]?.client as? Player
             json.put("vote", player?.vote?.voteId)
             json.put("ownWord", game.chosenFaker == player)
-            println("[OUTGOING] $json")
+            // println("[OUTGOING] $json")
             conn.send(json.toString())
         }
     }
