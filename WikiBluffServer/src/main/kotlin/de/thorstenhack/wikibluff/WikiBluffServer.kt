@@ -39,7 +39,13 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         println("$conn has left the room!")
 
         val game = connections[conn] ?: return
-        game.clients.remove(conn)
+
+        val removedPlayer = game.clients.remove(conn) as? Player
+        if (removedPlayer != null && game.phase != GamePhase.PREPARE) {
+            // we can't just remove players during the game phase, it might be their word that's chosen and votes are
+            // already cast. Therefore set them inactive, when they log in later with the same id they will be retrieved
+            game.inactivePlayers.add(removedPlayer)
+        }
         connections.remove(conn)
 
         sendUpdate(game)
@@ -50,7 +56,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
     }
 
     override fun onMessage(conn: WebSocket, msg: String) {
-        println("$conn: $msg")
+        println("[INCOMING] $msg")
         try {
             val message = JSONObject(msg)
             when (message.getString("action")) {
@@ -69,44 +75,40 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                         (game.clients[conn] as? Faker)?.word = message.getString("word")
                     }
                 }
-                "setReady" -> {
-                    connections[conn]?.let { game ->
-                        val client = game.clients[conn] as? Faker ?: return@let
-                        client.isReady = message.getBoolean("ready")
-                        val readyToPlay = game.fakers.size >= 2 && game.fakers.all { it.isReady }
-                        game.phase = if (readyToPlay) GamePhase.READY_TO_PLAY else GamePhase.INITIAL
-                        sendUpdate(game)
-                    }
-                }
                 "startRound" -> {
                     connections[conn]?.let { game ->
-                        if (game.phase == GamePhase.READY_TO_PLAY) {
-                            val words = game.fakers.mapNotNull { it.word }
-                            if (words.isEmpty()) {
+                        if (game.fakers.size < 2) {
+                            sendWarning("Es müssen mindestens zwei Faker mitspielen!", conn)
+                        } else if (game.phase != GamePhase.PREPARE) {
+                            sendWarning("Spiel bereits gestartet!", conn)
+                        } else {
+                            val fakersWithWords = game.fakers.filter { !it.word.isNullOrBlank() }
+                            if (fakersWithWords.isEmpty()) {
                                 sendWarning("Kein Faker hat ein Wort gewählt.", game)
-                                game.fakers.forEach { it.isReady = false }
                                 sendUpdate(game)
                                 return@let
                             }
 
-                            game.chosenFaker = game.fakers.random()
+                            game.chosenFaker = fakersWithWords.random()
                             game.phase = GamePhase.GUESSING
                             sendUpdate(game)
+                            retrieveWikipediaContent(game)
                         }
                     }
                 }
-                "startVoting" -> {
+                "finishVoting" -> {
                     connections[conn]?.let { game ->
                         if (game.phase == GamePhase.GUESSING) {
-                            game.phase = GamePhase.READY_TO_VOTE
+                            game.phase = GamePhase.REVELATION
+                            sendUpdate(game)
                         }
                     }
                 }
                 "vote" -> {
                     connections[conn]?.let { game ->
-                        (game.clients[conn] as? Guesser)?.let { guesser ->
-                            guesser.vote = game.fakers.find { it.id == message.getString("vote") }
-                            if (game.guessers.all { it.vote != null }) {
+                        (game.clients[conn] as? Player)?.let { guesser ->
+                            guesser.vote = game.fakers.find { it.voteId == message.getString("vote") }
+                            if (game.players.filter { it != game.chosenFaker }.all { it.vote != null }) {
                                 game.phase = GamePhase.REVELATION
                             }
                             sendUpdate(game)
@@ -115,14 +117,15 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                 }
                 "restart" -> {
                     connections[conn]?.let { game ->
-                        game.phase = GamePhase.INITIAL
-                        game.guessers.forEach {
-                            it.vote = null
+                        game.phase = GamePhase.PREPARE
+                        game.chosenFaker = null
+                        game.wikipediaLink = null
+                        game.wikipediaText = null
+                        game.inactivePlayers.clear()
+                        game.clients.values.forEach {
+                            (it as? Player)?.vote = null
                         }
-                        game.fakers.forEach {
-                            it.vote = null
-                            it.isReady = false
-                        }
+                        sendUpdate(game)
                     }
                 }
             }
@@ -132,9 +135,21 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         }
     }
 
+    private fun retrieveWikipediaContent(game: Game) {
+        return
+        // TODO
+        val url = UrlUtil.loadUrl(
+            "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=1&explaintext=1&titles="
+                    + UrlUtil.encodeURIComponent(game.chosenFaker?.word)
+        )
+        val json = JSONObject(url)
+
+
+    }
+
     private fun join(message: JSONObject, conn: WebSocket, role: KClass<out GameSubscriber>) {
         val gameId = message.getString("game")
-        //val id = message.getString("id")
+        val id = message.getOptionalString("id")
         val name = message.getOptionalString("name")
         val word = message.getOptionalString("word")
 
@@ -150,6 +165,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                     word?.let { (value as? Faker)?.word = word }
 
                     game.clients.put(conn, value)
+                    sendUserState(conn, gameId, value)
                 }
                 if (role == Spectator::class) sendUpdate(game, conn) else sendUpdate(game)
                 return
@@ -159,15 +175,36 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
             }
         }
 
+        val game = games.getOrPut(gameId) { Game() }
+
+        if (!id.isNullOrEmpty()) {
+            game.inactivePlayers.find { it.id == id }?.let { player ->
+                game.inactivePlayers.remove(player)
+                game.clients.put(conn, player)
+                sendUpdate(game)
+                sendUserState(conn, gameId, player)
+                return
+            }
+        }
+
         val player = when (role) {
             Faker::class -> Faker(name ?: "")
             Guesser::class -> Guesser(name ?: "")
             else -> Spectator()
         }
-        val game = games.getOrPut(gameId) { Game() }
         game.clients.put(conn, player)
         connections.put(conn, game)
         sendUpdate(game)
+        sendUserState(conn, gameId, player)
+    }
+
+    private fun sendUserState(conn: WebSocket, gameId: String, user: GameSubscriber) {
+        user.json?.let {
+            it.put("action", "userState")
+            it.put("game", gameId)
+            println("[OUTGOING] $it")
+            conn.send(it.toString())
+        }
     }
 
     private fun sendWarning(message: String, game: Game) {
@@ -177,7 +214,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         broadcast(warning.toString(), game.clients.keys)
     }
 
-    private fun sendWarning(message: String, conn: WebSocket) {
+    private fun sendWarning(message: String?, conn: WebSocket) {
         val warning = JSONObject()
         warning.put("action", "warning")
         warning.put("message", message)
@@ -193,9 +230,20 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
 
     private fun sendUpdate(game: Game, conn: WebSocket? = null) {
         if (conn == null) {
-            broadcast(game.stateJson, game.clients.keys)
+            if (game.phase == GamePhase.GUESSING) {
+                val json = game.stateJson
+                game.clients.filter { it.key.isOpen }.forEach {
+                    val player = it.value as? Player
+                    json.put("vote", player?.vote?.voteId)
+                    json.put("ownWord", game.chosenFaker == player)
+                    it.key.send(json.toString())
+                }
+
+            } else {
+                broadcast(game.stateJson.toString(), game.clients.keys.filter { it.isOpen })
+            }
         } else {
-            conn.send(game.stateJson)
+            conn.send(game.stateJson.toString())
         }
     }
 
@@ -204,3 +252,5 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         connectionLostTimeout = 10
     }
 }
+
+class ConnectionInfo(val game: Game, val player: GameSubscriber)

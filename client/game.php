@@ -2,7 +2,7 @@
 
 function getAddress() {
     $protocol = array_key_exists("HTTPS", $_SERVER) && $_SERVER['HTTPS'] == 'on' ? 'https' : 'http';
-    return $protocol.'://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
+    return $protocol . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 }
 
 ?>
@@ -28,17 +28,16 @@ function getAddress() {
 
 </div>
 
-<div class="container" id="container">
-    <div class="lds-ring">
-        <div></div>
-        <div></div>
-        <div></div>
-        <div></div>
+<div id="container">
+    <div class="container">
+        <div class="lds-ring">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
     </div>
 </div>
-
-
-
 <script type="text/javascript" src="js/bundle.js"></script>
 
 </body>

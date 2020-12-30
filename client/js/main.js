@@ -1,7 +1,10 @@
 $ = jQuery = require('jquery');
 var Twig = require('twig');
 var templatePrepare = require("./templates/prepare")
+var templateRoundRunning = require("./templates/round-running")
 var templateGuessersFakers = require("./templates/guessers-fakers")
+var templateRevelation = require("./templates/revelation")
+var infoMessageManager = require("./InfoMessageManager")
 
 $(document).ready(function () {
     if (!("WebSocket" in window)) {
@@ -14,15 +17,31 @@ $(document).ready(function () {
     var host = "ws://" + serverUrl + ":" + serverPort;
     var reconnect = true;
 
+    var gameId = $("body").attr("data-game");
     var gameJson = {}
-    var userState = {}
+    var userState = localStorage.getItem("userState");
+    userState = userState ? JSON.parse(userState) : {};
 
     function wsconnect() {
         try {
             socket = new WebSocket(host);
             socket.onopen = function () {
                 status('[Socket Status]: ' + socket.readyState + ' (open)');
-                requestStatus();
+
+                if (userState[gameId] && userState[gameId].role) {
+                    var userStateCopy = JSON.parse(JSON.stringify(userState[gameId]));
+
+                    if (userState[gameId].role === "faker") {
+                        userStateCopy.action = "joinFakers";
+                    }
+
+                    if (userState[gameId].role === "guesser") {
+                        userStateCopy.action = "joinGuessers";
+                    }
+                    send(userStateCopy);
+                } else {
+                    requestStatus();
+                }
             };
 
             socket.onerror = function (error) {
@@ -35,18 +54,35 @@ $(document).ready(function () {
                 status("[Incoming]: " + msg.data);
 
                 switch (data.action) {
-                    case "join":
+                    case "warning":
+                        infoMessageManager.showError(data.message);
+                        break;
 
-                    // no break, status is also included
+                    case "userState":
+                        userState = localStorage.getItem("userState");
+                        userState = userState ? JSON.parse(userState) : {};
+                        data.word = $(".js-word").val();
+                        userState[data.game] = data;
+                        localStorage.setItem("userState", JSON.stringify(userState));
+                        break;
+
                     case "update":
                         data.address = $("body").attr("data-address")
-                        var gameIsInPhase1 = data.state === 'initial' || data.state === "ready_to_play";
-                        var gameWasInPhase1 = gameJson.state === 'initial' || gameJson.state === "ready_to_play";
+                        var gameIsInPhase1 = data.state === 'prepare';
+                        var gameWasInPhase1 = gameJson.state === 'prepare';
 
                         if (gameIsInPhase1 && !gameWasInPhase1) {
                             $("#container").html(templatePrepare.render(data));
+                            if (userState[gameId]) {
+                                $(".js-name").val(userState[gameId].name);
+                                $(".js-word").val(userState[gameId].word);
+                            }
                         } else if (gameIsInPhase1 && gameWasInPhase1) {
                             $("#guesser-faker-container").html(templateGuessersFakers.render(data));
+                        } else if (data.state === 'guessing') {
+                            $("#container").html(templateRoundRunning.render(data));
+                        } else if (data.state === 'revelation') {
+                            $("#container").html(templateRevelation.render(data));
                         }
                         gameJson = data;
                         break;
@@ -85,40 +121,47 @@ $(document).ready(function () {
     var requestStatus = function () {
         send({
             "action": "status",
-            "game": $("body").attr("data-game")
+            "game": gameId
         });
     }
 
     var sendName = function (name) {
-        if (!userState.state) return
+        if (!userState[gameId] || !userState[gameId].role) return
         send({
             "action": "setName",
             "name": name
         });
+        userState[gameId].name = name;
+        localStorage.setItem("userState", JSON.stringify(userState));
     };
 
     var sendWord = function (word) {
-        if (!userState.state) return
+        if (!userState[gameId] || !userState[gameId].role) return
         send({
             "action": "setWord",
             "word": word
         });
+        userState[gameId].word = word;
+        localStorage.setItem("userState", JSON.stringify(userState));
     };
 
 
     $(document).on("blur", ".js-name", function (e) {
+        e.preventDefault();
         var name = $(e.target).val();
         localStorage.setItem("name", name);
         sendName(name);
     });
 
     $(document).on("blur", ".js-word", function (e) {
+        e.preventDefault();
         var word = $(e.target).val();
         localStorage.setItem("word", word);
         sendWord(word);
     });
 
     $(document).on("click", ".js-join-fakers", function (e) {
+        e.preventDefault();
         send({
             "action": "joinFakers",
             "game": $("body").attr("data-game"),
@@ -128,10 +171,48 @@ $(document).ready(function () {
     });
 
     $(document).on("click", ".js-join-guessers", function (e) {
+        e.preventDefault();
         send({
             "action": "joinGuessers",
             "game": $("body").attr("data-game"),
             "name": $(".js-name").val()
+        });
+    });
+
+    $(document).on("click", ".js-start-round", function (e) {
+        e.preventDefault();
+        send({
+            "action": "startRound"
+        });
+    });
+
+    $(document).on("click", ".js-finish-voting", function (e) {
+        e.preventDefault();
+        send({
+            "action": "finishVoting"
+        });
+    });
+
+    $(document).on("click", ".js-restart", function (e) {
+        e.preventDefault();
+        send({
+            "action": "restart"
+        });
+    });
+
+    $(document).on("click", ".js-share", function (e) {
+        var input = $(e.target);
+        input.select();
+        document.execCommand("copy");
+        infoMessageManager.showSuccess("Link in die Zwischenablage kopiert");
+    });
+
+    $(document).on("click", ".js-faker", function (e) {
+        var $item = $(e.target);
+        var vote = $item.attr("data-id");
+        send({
+            "action": "vote",
+            "vote": vote
         });
     });
 

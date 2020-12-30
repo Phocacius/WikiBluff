@@ -1,0 +1,127 @@
+
+.heading-container {
+  background: $boxBackground;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  width: 100%;
+  padding: 16px;
+  max-width: 100%;
+  margin: 4rem auto 3rem;
+
+  @include media-breakpoint-up(sm) {
+    width: 500px;
+    margin: 7rem auto 3rem;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    text-align: center;
+  }
+
+}
+
+.flex-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.new-game {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.guesser-faker-container {
+  padding: 16px;
+  background: $darkGray;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  margin-bottom: 16px;
+}
+
+.join-container {
+  padding: 16px;
+  background: $joinBackground;
+  border: 1px solid $lightGold;
+  border-radius: $boxRadius;
+  margin-bottom: 10px;
+
+  .btn {
+    margin-top: 8px;
+  }
+}
+
+
+
+
+$guesserFakerPadding: 4px;
+
+.guessers {
+  list-style: none;
+  padding: 0 4px;
+
+  li {
+    padding-top: $guesserFakerPadding;
+    padding-bottom: $guesserFakerPadding;
+    padding-left: 0;
+    color: $lightGold;
+  }
+}
+
+.fakers {
+  list-style: none;
+  padding: 0 4px;
+
+  li {
+    color: $lightGold;
+    padding-top: $guesserFakerPadding;
+    padding-bottom: $guesserFakerPadding;
+    padding-left: 12px;
+    position: relative;
+
+    &:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      display: block;
+      background: $lightGold;
+      width: 3px;
+      height: 24px;
+
+    }
+  }
+}
+
+.text-center {
+  display: block;
+  margin: auto;
+}
+
+.form-control, .form-control:hover, .form-control:active, .form-control:focus, .form-control[readonly] {
+  background: $darkGray;
+  color: $white;
+  border: 1px solid $lightGold;
+}
+
+label {
+  font-variant: small-caps;
+  text-align: center;
+  width: 100%;
+  color: $lightGold;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.description {
+  font-size: 0.8rem;
+  color: #bbb;
+  display: block;
+  line-height: 1rem;
+  margin-bottom: 6px;
+  margin-top: 8px;
+
+  &:last-of-type {
+    margin-bottom: 20px;
+  }
+}

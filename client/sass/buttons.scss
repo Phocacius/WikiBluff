@@ -1,0 +1,38 @@
+
+.btn {
+  transition: all 500ms;
+}
+
+.btn-primary, .btn-primary.btn-non-clickable:hover {
+  background: $darkGold;
+  border: 1px solid $lightGold;
+  box-sizing: border-box;
+  color: white;
+}
+
+.btn-primary:hover, .btn-primary.btn-selected {
+  background: $lightGold;
+  color: $black;
+  border: 1px solid $darkGold;
+  font-weight: bold;
+}
+
+.btn-secondary, .btn-secondary.btn-non-clickable:hover {
+  background: $black;
+  box-sizing: border-box;
+  color: $lightGold;
+  border: 1px solid $lightGold;
+}
+
+.btn-secondary:hover, .btn-secondary.btn-selected {
+  border: 1px solid $lightGold;
+  background: $darkGold;
+  font-weight: bold;
+}
+
+
+.btn-non-clickable:hover {
+  font-weight: normal;
+  cursor: default;
+  user-select: auto;
+}

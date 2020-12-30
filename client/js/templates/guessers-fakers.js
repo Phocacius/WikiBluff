@@ -26,7 +26,7 @@ module.exports = Twig.twig({
     {% else %}
         <ul class="fakers">
             {% for faker in fakers %}
-                <li>{% if faker.ready == true %}<strong>{% endif %}{{ faker.name }}{% if faker.ready == true %}</strong>{% endif %} (bereit)</li>
+                <li>{{ faker.name }}</li>
             {% endfor %}
         </ul>
     {% endif %}

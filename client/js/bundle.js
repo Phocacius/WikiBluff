@@ -1,8 +1,82 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+var $ = require('jquery');
+
+var InfoMessageManager = function (el, params) {
+    this.initialised = false;
+};
+
+InfoMessageManager.prototype.init = function () {
+    this.$container = $(document.createElement("div"));
+    this.$container.addClass("alert");
+    this.$container
+        .css("position", "fixed")
+        .css("left", "50%")
+        .css("transform", "translateX(-50%)")
+        .css("bottom", "20px");
+    this.$container.hide();
+    $("body").append(this.$container);
+
+    this.currentTimeout = -1;
+    this.initialised = true;
+};
+
+InfoMessageManager.prototype.showSuccess = function (msg) {
+    if (!this.initialised) this.init();
+    this.$container.addClass("alert-success").removeClass("alert-danger");
+    this.post(msg);
+};
+
+InfoMessageManager.prototype.showError = function (msg) {
+    if (!this.initialised) this.init();
+    this.$container.addClass("alert-danger").removeClass("alert-success");
+    this.post(msg);
+};
+
+InfoMessageManager.prototype.handleSuccessfulAjax = function(res) {
+    this.showSuccess(res.message);
+};
+
+InfoMessageManager.prototype.handleFailedAjax = function(res) {
+    console.error(res);
+
+    var msg = "Es ist ein Fehler aufgetreten.";
+    if (res.responseText) {
+        try {
+            var parsed = JSON.parse(res.responseText);
+            msg = parsed.message;
+        } catch (e) {
+            // no json, just show general message
+        }
+    }
+    this.showError(msg);
+};
+
+InfoMessageManager.prototype.post = function (msg) {
+    if (!this.initialised) this.init();
+    this.$container.text(msg);
+    this.$container.show();
+
+    if (this.currentTimeout !== -1) {
+        clearTimeout(this.currentTimeout)
+    }
+
+    this.currentTimeout = setTimeout(function () {
+        this.$container.hide();
+        this.currentTimeout = -1;
+    }.bind(this), 4000);
+};
+
+
+module.exports = new InfoMessageManager();
+
+},{"jquery":3}],2:[function(require,module,exports){
 $ = jQuery = require('jquery');
 var Twig = require('twig');
 var templatePrepare = require("./templates/prepare")
+var templateRoundRunning = require("./templates/round-running")
 var templateGuessersFakers = require("./templates/guessers-fakers")
+var templateRevelation = require("./templates/revelation")
+var infoMessageManager = require("./InfoMessageManager")
 
 $(document).ready(function () {
     if (!("WebSocket" in window)) {
@@ -15,15 +89,31 @@ $(document).ready(function () {
     var host = "ws://" + serverUrl + ":" + serverPort;
     var reconnect = true;
 
+    var gameId = $("body").attr("data-game");
     var gameJson = {}
-    var userState = {}
+    var userState = localStorage.getItem("userState");
+    userState = userState ? JSON.parse(userState) : {};
 
     function wsconnect() {
         try {
             socket = new WebSocket(host);
             socket.onopen = function () {
                 status('[Socket Status]: ' + socket.readyState + ' (open)');
-                requestStatus();
+
+                if (userState[gameId] && userState[gameId].role) {
+                    var userStateCopy = JSON.parse(JSON.stringify(userState[gameId]));
+
+                    if (userState[gameId].role === "faker") {
+                        userStateCopy.action = "joinFakers";
+                    }
+
+                    if (userState[gameId].role === "guesser") {
+                        userStateCopy.action = "joinGuessers";
+                    }
+                    send(userStateCopy);
+                } else {
+                    requestStatus();
+                }
             };
 
             socket.onerror = function (error) {
@@ -36,18 +126,35 @@ $(document).ready(function () {
                 status("[Incoming]: " + msg.data);
 
                 switch (data.action) {
-                    case "join":
+                    case "warning":
+                        infoMessageManager.showError(data.message);
+                        break;
 
-                    // no break, status is also included
+                    case "userState":
+                        userState = localStorage.getItem("userState");
+                        userState = userState ? JSON.parse(userState) : {};
+                        data.word = $(".js-word").val();
+                        userState[data.game] = data;
+                        localStorage.setItem("userState", JSON.stringify(userState));
+                        break;
+
                     case "update":
                         data.address = $("body").attr("data-address")
-                        var gameIsInPhase1 = data.state === 'initial' || data.state === "ready_to_play";
-                        var gameWasInPhase1 = gameJson.state === 'initial' || gameJson.state === "ready_to_play";
+                        var gameIsInPhase1 = data.state === 'prepare';
+                        var gameWasInPhase1 = gameJson.state === 'prepare';
 
                         if (gameIsInPhase1 && !gameWasInPhase1) {
                             $("#container").html(templatePrepare.render(data));
+                            if (userState[gameId]) {
+                                $(".js-name").val(userState[gameId].name);
+                                $(".js-word").val(userState[gameId].word);
+                            }
                         } else if (gameIsInPhase1 && gameWasInPhase1) {
                             $("#guesser-faker-container").html(templateGuessersFakers.render(data));
+                        } else if (data.state === 'guessing') {
+                            $("#container").html(templateRoundRunning.render(data));
+                        } else if (data.state === 'revelation') {
+                            $("#container").html(templateRevelation.render(data));
                         }
                         gameJson = data;
                         break;
@@ -86,52 +193,98 @@ $(document).ready(function () {
     var requestStatus = function () {
         send({
             "action": "status",
-            "game": $("body").attr("data-game")
+            "game": gameId
         });
     }
 
     var sendName = function (name) {
-        if (!userState.state) return
+        if (!userState[gameId] || !userState[gameId].role) return
         send({
             "action": "setName",
             "name": name
         });
+        userState[gameId].name = name;
+        localStorage.setItem("userState", JSON.stringify(userState));
     };
 
     var sendWord = function (word) {
-        if (!userState.state) return
+        if (!userState[gameId] || !userState[gameId].role) return
         send({
             "action": "setWord",
             "word": word
         });
+        userState[gameId].word = word;
+        localStorage.setItem("userState", JSON.stringify(userState));
     };
 
 
     $(document).on("blur", ".js-name", function (e) {
+        e.preventDefault();
         var name = $(e.target).val();
         localStorage.setItem("name", name);
         sendName(name);
     });
 
     $(document).on("blur", ".js-word", function (e) {
+        e.preventDefault();
         var word = $(e.target).val();
         localStorage.setItem("word", word);
         sendWord(word);
     });
 
     $(document).on("click", ".js-join-fakers", function (e) {
+        e.preventDefault();
         send({
             "action": "joinFakers",
+            "game": $("body").attr("data-game"),
+            "name": $(".js-name").val(),
+            "word": $(".js-word").val()
+        });
+    });
+
+    $(document).on("click", ".js-join-guessers", function (e) {
+        e.preventDefault();
+        send({
+            "action": "joinGuessers",
             "game": $("body").attr("data-game"),
             "name": $(".js-name").val()
         });
     });
 
-    $(document).on("click", ".js-join-guessers", function (e) {
+    $(document).on("click", ".js-start-round", function (e) {
+        e.preventDefault();
         send({
-            "action": "joinGuessers",
-            "game": $("body").attr("data-game"),
-            "name": $(".js-name").val()
+            "action": "startRound"
+        });
+    });
+
+    $(document).on("click", ".js-finish-voting", function (e) {
+        e.preventDefault();
+        send({
+            "action": "finishVoting"
+        });
+    });
+
+    $(document).on("click", ".js-restart", function (e) {
+        e.preventDefault();
+        send({
+            "action": "restart"
+        });
+    });
+
+    $(document).on("click", ".js-share", function (e) {
+        var input = $(e.target);
+        input.select();
+        document.execCommand("copy");
+        infoMessageManager.showSuccess("Link in die Zwischenablage kopiert");
+    });
+
+    $(document).on("click", ".js-faker", function (e) {
+        var $item = $(e.target);
+        var vote = $item.attr("data-id");
+        send({
+            "action": "vote",
+            "vote": vote
         });
     });
 
@@ -140,7 +293,7 @@ $(document).ready(function () {
 
 });
 
-},{"./templates/guessers-fakers":4,"./templates/prepare":5,"jquery":2,"twig":3}],2:[function(require,module,exports){
+},{"./InfoMessageManager":1,"./templates/guessers-fakers":5,"./templates/prepare":6,"./templates/revelation":7,"./templates/round-running":8,"jquery":3,"twig":4}],3:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.5.1
  * https://jquery.com/
@@ -11014,7 +11167,7 @@ if ( typeof noGlobal === "undefined" ) {
 return jQuery;
 } );
 
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 (function (global){(function (){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
@@ -20450,7 +20603,7 @@ module.exports = function (Twig) {
 /******/ ]);
 });
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"fs":6,"path":7}],4:[function(require,module,exports){
+},{"fs":9,"path":10}],5:[function(require,module,exports){
 var Twig = require('twig');
 
 module.exports = Twig.twig({
@@ -20479,71 +20632,147 @@ module.exports = Twig.twig({
     {% else %}
         <ul class="fakers">
             {% for faker in fakers %}
-                <li>{% if faker.ready == true %}<strong>{% endif %}{{ faker.name }}{% if faker.ready == true %}</strong>{% endif %} (bereit)</li>
+                <li>{{ faker.name }}</li>
             {% endfor %}
         </ul>
     {% endif %}
 </div>
 `
 });
-},{"twig":3}],5:[function(require,module,exports){
+},{"twig":4}],6:[function(require,module,exports){
 var Twig = require('twig');
 
 module.exports = Twig.twig({
     id: 'prepare',
     allowInlineIncludes: true,
     data: `
-<div class="flex-container">
-
-    <div class="flex-item">
-
-        <div class="join-container">
-            <h3>Dein Name</h3>
-            <input type="text" class="form-control js-name">
+<div class="container">
+    <div class="flex-container">
+    
+        <div class="flex-item">
+    
+            <div class="join-container">
+                <h3>Dein Name</h3>
+                <input type="text" class="form-control js-name">
+            </div>
+    
+            <div class="join-container">
+                <h3>Willst du ein Wort vorstellen?</h3>
+                <p class="description">Dein Wort sollte nicht allgemein bekannt sein. Je abstruser der Begriff, desto besser. Namen von Personen oder Wörter bei denen die Interpretationen nur in eine Richtung gegen sollten vermieden werden.</p>
+                <p class="description">Du kannst auch ohne Wort teilnehmen, dann wirst du auf jeden Fall improvisieren müssen.</p>
+                <label>
+                    Dein Wort
+                    <input type="text" class="form-control js-word">
+                </label>
+                <button class="btn btn-secondary text-center js-join-fakers">Faker werden</button>
+            </div>
+    
+            <div class="join-container">
+                <h3>Willst du mitraten?</h3>
+                <button class="btn btn-secondary text-center js-join-guessers">Guesser werden</button>
+            </div>
+    
         </div>
-
-        <div class="join-container">
-            <h3>Willst du ein Wort vorstellen?</h3>
-            <p class="description">Dein Wort sollte nicht allgemein bekannt sein. Je abstruser der Begriff, desto besser. Namen von Personen oder Wörter bei denen die Interpretationen nur in eine Richtung gegen sollten vermieden werden.</p>
-            <p class="description">Du kannst auch ohne Wort teilnehmen, dann wirst du auf jeden Fall improvisieren müssen.</p>
-            <label>
-                Dein Wort
-                <input type="text" class="form-control js-word">
+    
+        <div class="flex-item" id="guesser-faker-container">
+            {% include 'guessers-fakers' %}
+        </div>
+    
+    </div>
+    
+    <div class="flex-container">
+    
+        <div class="flex-item">
+            <label>Teile den Link und lade andere ein!
+                <input type="text" class="form-control js-share" readonly value="{{ address }}">
             </label>
-            <button class="btn btn-secondary text-center js-join-fakers">Faker werden</button>
         </div>
-
-        <div class="join-container">
-            <h3>Willst du mitraten?</h3>
-            <button class="btn btn-secondary text-center js-join-guessers">Guesser werden</button>
+    
+        <div class="flex-item">
+            <button class="btn btn-primary btn-lg text-center js-start-round">Runde Starten!</button>
         </div>
-
+    
     </div>
-
-    <div class="flex-item" id="guesser-faker-container">
-        {% include 'guessers-fakers' %}
-    </div>
-
-</div>
-
-<div class="flex-container">
-
-    <div class="flex-item">
-        <label>Teile den Link und lade andere ein!
-            <input type="text" class="form-control share" readonly value="{{ address }}">
-        </label>
-    </div>
-
-    <div class="flex-item">
-        <button class="btn btn-primary btn-lg text-center">Runde Starten!</button>
-    </div>
-
 </div>
 `
 });
-},{"twig":3}],6:[function(require,module,exports){
+},{"twig":4}],7:[function(require,module,exports){
+var Twig = require('twig');
 
-},{}],7:[function(require,module,exports){
+module.exports = Twig.twig({
+    id: 'revelation',
+    allowInlineIncludes: true,
+    data: `
+<div class="container container-revelation">
+    <h4>Das Wort war:</h4>
+    <div class="chosen-word">{{ word }}</div>
+    
+    <div class="votes-result">
+        {% for faker in fakers %}
+            <div class="vote-result {% if faker.wasChosen == true %}vote-result--chosen{% endif %}">
+                <div class="btn btn-large btn-non-clickable {% if faker.wasChosen == true %}btn-primary{% else %}btn-secondary{% endif %}">
+                    {{ faker.name }}{% if faker.wasChosen == true %}<br><small>hatte recht</small>{% endif %}
+                </div>
+                <ul class="voted-for">
+                    {% for voter in faker.votedFor %}
+                        <li>{{ voter }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <p>{{ wikipediaText }}</p>
+    <p><a href="{{ wikipediaLink }}" target="_blank">Artikel lesen</a></p>
+
+    <button class="btn btn-primary btn-lg text-center js-restart">Neue Runde</button>
+</div>
+`
+});
+},{"twig":4}],8:[function(require,module,exports){
+var Twig = require('twig');
+
+module.exports = Twig.twig({
+    id: 'round-running',
+    allowInlineIncludes: true,
+    data: `
+<div class="container container-round-running">
+    <h4>Das Wort für diese Runde:</h4>
+    <div class="chosen-word">{{ word }}</div>
+
+    {% if ownWord == true %}
+        <p>Dein Wort wurde gewählt, du kannst nicht abstimmen.</p>
+    
+        <div class="votes">
+            {% for faker in fakers %}
+                <div class="btn btn-large btn-secondary btn-non-clickable">{{ faker.name }}</div>
+            {% endfor %}
+        </div>
+    
+        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+    {% else %}
+        <h4>Wer sagt die Wahrheit?</h4>
+        <div class="votes">
+            {% for faker in fakers %}
+                {% if vote is empty %}
+                    <div class="btn btn-large btn-primary js-faker" data-id="{{ faker.voteid }}">{{ faker.name }}</div>
+                {% elseif vote == faker.voteid %}
+                    <div class="btn btn-large btn-primary btn-selected js-faker" data-id="{{ faker.voteid }}">{{ faker.name }}</div>
+                {% else %} 
+                    <div class="btn btn-large btn-secondary js-faker" data-id="{{ faker.voteid }}">{{ faker.name }}</div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    
+        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen{% endif %} noch abstimmen{% if vote is empty %}, inklusive dir{% endif %}.</p>
+    {% endif %}
+    <div class="btn btn-primary js-finish-voting">Runde beenden</div>
+</div>
+`
+});
+},{"twig":4}],9:[function(require,module,exports){
+
+},{}],10:[function(require,module,exports){
 (function (process){(function (){
 // 'path' module extracted from Node.js v8.11.1 (only the posix part)
 // transplited with Babel
@@ -21076,7 +21305,7 @@ posix.posix = posix;
 module.exports = posix;
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":8}],8:[function(require,module,exports){
+},{"_process":11}],11:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -21262,4 +21491,4 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}]},{},[1]);
+},{}]},{},[2]);

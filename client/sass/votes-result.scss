@@ -1,0 +1,61 @@
+.votes-result {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  .btn {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 2rem;
+    font-size: 1.3rem;
+  }
+}
+
+.vote-result {
+  margin: 0 1rem;
+}
+
+.voted-for {
+  list-style: none;
+  margin-left: 0;
+  padding-left: 0;
+
+  li {
+    padding: 0;
+    color: $lightGold;
+    text-align: center;
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+  }
+}
+
+.vote-result--chosen {
+  .voted-for li {
+    font-weight: bold;
+  }
+
+  small {
+    font-size: 0.7rem;
+  }
+  .btn {
+    position: relative;
+    line-height: 0.75;
+
+    &:before, &:after {
+      content: "";
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      left: 0;
+      top: 0;
+      background: url("../img/winner.png") left no-repeat;
+      background-size: contain;
+    }
+
+    &:after {
+      transform: scaleX(-1);
+    }
+  }
+}
