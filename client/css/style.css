@@ -3698,6 +3698,10 @@ a:hover {
   }
 }
 
+.legal h1, .legal .h1, .legal h2, .legal .h2, .legal h3, .legal .h3, .legal h4, .legal .h4, .legal h5, .legal .h5, .legal h6, .legal .h6 {
+  text-align: center;
+}
+
 .btn {
   transition: all 500ms;
 }
@@ -3743,6 +3747,9 @@ a:hover {
   padding: 16px;
   max-width: 100%;
   margin: 4rem auto 3rem;
+}
+.heading-container a {
+  text-decoration: none;
 }
 @media (min-width: 576px) {
   .heading-container {

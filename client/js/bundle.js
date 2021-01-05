@@ -29,6 +29,7 @@ InfoMessageManager.prototype.showSuccess = function (msg) {
 InfoMessageManager.prototype.showError = function (msg) {
     if (!this.initialised) this.init();
     this.$container.addClass("alert-danger").removeClass("alert-success");
+
     this.post(msg);
 };
 
@@ -39,7 +40,7 @@ InfoMessageManager.prototype.handleSuccessfulAjax = function(res) {
 InfoMessageManager.prototype.handleFailedAjax = function(res) {
     console.error(res);
 
-    var msg = "Es ist ein Fehler aufgetreten.";
+    var msg = "genericError";
     if (res.responseText) {
         try {
             var parsed = JSON.parse(res.responseText);
@@ -53,7 +54,7 @@ InfoMessageManager.prototype.handleFailedAjax = function(res) {
 
 InfoMessageManager.prototype.post = function (msg) {
     if (!this.initialised) this.init();
-    this.$container.text(msg);
+    this.$container.text((window.lang && window.lang[msg]) ?? msg);
     this.$container.show();
 
     if (this.currentTimeout !== -1) {
@@ -140,6 +141,7 @@ $(document).ready(function () {
 
                     case "update":
                         data.address = $("body").attr("data-address")
+                        data.lang = window.lang;
                         var gameIsInPhase1 = data.state === 'prepare';
                         var gameWasInPhase1 = gameJson.state === 'prepare';
 
@@ -276,7 +278,7 @@ $(document).ready(function () {
         var input = $(e.target);
         input.select();
         document.execCommand("copy");
-        infoMessageManager.showSuccess("Link in die Zwischenablage kopiert");
+        infoMessageManager.showSuccess("copiedToClipboard");
     });
 
     $(document).on("click", ".js-faker", function (e) {
@@ -20611,10 +20613,10 @@ module.exports = Twig.twig({
     allowInlineIncludes: true,
     data: `
 <div class="guesser-faker-container" id="guessers">
-    <h3>Guessers</h3>
+    <h3>{{ lang.guessers }}</h3>
 
     {% if guessers is empty %}
-        Noch keine Guessers registriert.
+        {{ lang.noGuessers }}
     {% else %}
 
         <ul class="guessers">
@@ -20626,9 +20628,9 @@ module.exports = Twig.twig({
 </div>
 
 <div class="guesser-faker-container" id="fakers">
-    <h3>Fakers</h3>
+    <h3>{{ lang.fakers }}</h3>
     {% if fakers is empty %}
-        Noch keine Fakers registriert.
+        {{ lang.noFakers }}
     {% else %}
         <ul class="fakers">
             {% for faker in fakers %}
@@ -20652,24 +20654,22 @@ module.exports = Twig.twig({
         <div class="flex-item">
     
             <div class="join-container">
-                <h3>Dein Name</h3>
+                <h3>{{ lang.yourName }}</h3>
                 <input type="text" class="form-control js-name">
             </div>
     
             <div class="join-container">
-                <h3>Willst du ein Wort vorstellen?</h3>
-                <p class="description">Dein Wort sollte nicht allgemein bekannt sein. Je abstruser der Begriff, desto besser. Namen von Personen oder Wörter bei denen die Interpretationen nur in eine Richtung gegen sollten vermieden werden.</p>
-                <p class="description">Du kannst auch ohne Wort teilnehmen, dann wirst du auf jeden Fall improvisieren müssen.</p>
+                {{ lang.yourWordIntro }}
                 <label>
-                    Dein Wort
+                    {{ lang.yourWord }}
                     <input type="text" class="form-control js-word">
                 </label>
-                <button class="btn btn-secondary text-center js-join-fakers">Faker werden</button>
+                <button class="btn btn-secondary text-center js-join-fakers">{{ lang.joinFakers }}</button>
             </div>
     
             <div class="join-container">
-                <h3>Willst du mitraten?</h3>
-                <button class="btn btn-secondary text-center js-join-guessers">Guesser werden</button>
+                <h3>{{ lang.joinGuessersIntro }}</h3>
+                <button class="btn btn-secondary text-center js-join-guessers">{{ lang.joinGuessers }}</button>
             </div>
     
         </div>
@@ -20683,13 +20683,13 @@ module.exports = Twig.twig({
     <div class="flex-container">
     
         <div class="flex-item">
-            <label>Teile den Link und lade andere ein!
+            <label>{{ lang.share }}
                 <input type="text" class="form-control js-share" readonly value="{{ address }}">
             </label>
         </div>
     
         <div class="flex-item">
-            <button class="btn btn-primary btn-lg text-center js-start-round">Runde Starten!</button>
+            <button class="btn btn-primary btn-lg text-center js-start-round">{{ lang.startRound }}</button>
         </div>
     
     </div>
@@ -20704,14 +20704,14 @@ module.exports = Twig.twig({
     allowInlineIncludes: true,
     data: `
 <div class="container container-revelation">
-    <h4>Das Wort war:</h4>
+    <h4>{{ lang.revelationWord }}</h4>
     <div class="chosen-word">{{ word }}</div>
     
     <div class="votes-result">
         {% for faker in fakers %}
             <div class="vote-result {% if faker.wasChosen == true %}vote-result--chosen{% endif %}">
                 <div class="btn btn-large btn-non-clickable {% if faker.wasChosen == true %}btn-primary{% else %}btn-secondary{% endif %}">
-                    {{ faker.name }}{% if faker.wasChosen == true %}<br><small>hatte recht</small>{% endif %}
+                    {{ faker.name }}{% if faker.wasChosen == true %}<br><small>{{ lang.wasRight }}</small>{% endif %}
                 </div>
                 <ul class="voted-for">
                     {% for voter in faker.votedFor %}
@@ -20724,10 +20724,10 @@ module.exports = Twig.twig({
     
     {% for wiki in wikipedia %}
     <p>{{ wiki.text }}</p>
-    <p><a href="{{ wiki.link }}" target="_blank">Artikel lesen</a></p>
+    <p><a href="{{ wiki.link }}" target="_blank">{{ lang.readWikipedia}}</a></p>
     {% endfor %}
 
-    <button class="btn btn-primary btn-lg text-center js-restart">Neue Runde</button>
+    <button class="btn btn-primary btn-lg text-center js-restart">{{ lang.restart }}</button>
 </div>
 `
 });
@@ -20739,11 +20739,11 @@ module.exports = Twig.twig({
     allowInlineIncludes: true,
     data: `
 <div class="container container-round-running">
-    <h4>Das Wort für diese Runde:</h4>
+    <h4>{{ lang.roundRunningWord }}</h4>
     <div class="chosen-word">{{ word }}</div>
 
     {% if ownWord == true %}
-        <p>Dein Wort wurde gewählt, du kannst nicht abstimmen.</p>
+        <p>{{ lang.ownWord }}</p>
     
         <div class="votes">
             {% for faker in fakers %}
@@ -20751,9 +20751,9 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+        <p>{% if votesRemaining == 1 %}{{ lang.votesRemaining1 }}{% else %}{{ votesRemaining }} {{ lang.votesRemainingN }}{% endif %}</p>
     {% elseif canVote == false %}
-        <p>Als Zuschauer kannst du nicht abstimmen.</p>
+        <p>{{ lang.noVoteForSpectator }}</p>
     
         <div class="votes">
             {% for faker in fakers %}
@@ -20761,9 +20761,9 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+        <p>{% if votesRemaining == 1 %}{{ lang.votesRemaining1 }}{% else %}{{ votesRemaining }} {{ lang.votesRemainingN }}{% endif %}</p>
     {% else %}
-        <h4>Wer sagt die Wahrheit?</h4>
+        <h4>{{ lang.voteHeading }}</h4>
         <div class="votes">
             {% for faker in fakers %}
                 {% if vote is empty %}
@@ -20776,9 +20776,13 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen{% endif %} noch abstimmen{% if vote is empty %}, inklusive dir{% endif %}.</p>
+        <p>{% if votesRemaining == 1 %}
+            {% if vote is empty %}{{ lang.votesRemaining1You }}{% else %}{{ lang.votesRemaining1 }}{% endif %}
+        {% else %}
+            {{ votesRemaining }} {% if vote is empty %}{{ lang.votesRemainingNYou }}{% else %}{{ lang.votesRemainingN }}{% endif %}
+        {% endif %}
     {% endif %}
-    <div class="btn btn-primary js-finish-voting">Runde beenden</div>
+    <div class="btn btn-primary js-finish-voting">{{ lang.finishVoting }}</div>
 </div>
 `
 });

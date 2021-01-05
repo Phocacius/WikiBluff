@@ -5,11 +5,11 @@ module.exports = Twig.twig({
     allowInlineIncludes: true,
     data: `
 <div class="container container-round-running">
-    <h4>Das Wort für diese Runde:</h4>
+    <h4>{{ lang.roundRunningWord }}</h4>
     <div class="chosen-word">{{ word }}</div>
 
     {% if ownWord == true %}
-        <p>Dein Wort wurde gewählt, du kannst nicht abstimmen.</p>
+        <p>{{ lang.ownWord }}</p>
     
         <div class="votes">
             {% for faker in fakers %}
@@ -17,9 +17,9 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+        <p>{% if votesRemaining == 1 %}{{ lang.votesRemaining1 }}{% else %}{{ votesRemaining }} {{ lang.votesRemainingN }}{% endif %}</p>
     {% elseif canVote == false %}
-        <p>Als Zuschauer kannst du nicht abstimmen.</p>
+        <p>{{ lang.noVoteForSpectator }}</p>
     
         <div class="votes">
             {% for faker in fakers %}
@@ -27,9 +27,9 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen {% endif %} noch abstimmen.</p>
+        <p>{% if votesRemaining == 1 %}{{ lang.votesRemaining1 }}{% else %}{{ votesRemaining }} {{ lang.votesRemainingN }}{% endif %}</p>
     {% else %}
-        <h4>Wer sagt die Wahrheit?</h4>
+        <h4>{{ lang.voteHeading }}</h4>
         <div class="votes">
             {% for faker in fakers %}
                 {% if vote is empty %}
@@ -42,9 +42,13 @@ module.exports = Twig.twig({
             {% endfor %}
         </div>
     
-        <p>{% if votesRemaining == 1 %}1 Person muss{% else %}{{ votesRemaining }} Personen müssen{% endif %} noch abstimmen{% if vote is empty %}, inklusive dir{% endif %}.</p>
+        <p>{% if votesRemaining == 1 %}
+            {% if vote is empty %}{{ lang.votesRemaining1You }}{% else %}{{ lang.votesRemaining1 }}{% endif %}
+        {% else %}
+            {{ votesRemaining }} {% if vote is empty %}{{ lang.votesRemainingNYou }}{% else %}{{ lang.votesRemainingN }}{% endif %}
+        {% endif %}
     {% endif %}
-    <div class="btn btn-primary js-finish-voting">Runde beenden</div>
+    <div class="btn btn-primary js-finish-voting">{{ lang.finishVoting }}</div>
 </div>
 `
 });

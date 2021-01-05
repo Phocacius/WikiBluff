@@ -28,6 +28,7 @@ InfoMessageManager.prototype.showSuccess = function (msg) {
 InfoMessageManager.prototype.showError = function (msg) {
     if (!this.initialised) this.init();
     this.$container.addClass("alert-danger").removeClass("alert-success");
+
     this.post(msg);
 };
 
@@ -38,7 +39,7 @@ InfoMessageManager.prototype.handleSuccessfulAjax = function(res) {
 InfoMessageManager.prototype.handleFailedAjax = function(res) {
     console.error(res);
 
-    var msg = "Es ist ein Fehler aufgetreten.";
+    var msg = "genericError";
     if (res.responseText) {
         try {
             var parsed = JSON.parse(res.responseText);
@@ -52,7 +53,7 @@ InfoMessageManager.prototype.handleFailedAjax = function(res) {
 
 InfoMessageManager.prototype.post = function (msg) {
     if (!this.initialised) this.init();
-    this.$container.text(msg);
+    this.$container.text((window.lang && window.lang[msg]) ?? msg);
     this.$container.show();
 
     if (this.currentTimeout !== -1) {

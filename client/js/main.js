@@ -68,6 +68,7 @@ $(document).ready(function () {
 
                     case "update":
                         data.address = $("body").attr("data-address")
+                        data.lang = window.lang;
                         var gameIsInPhase1 = data.state === 'prepare';
                         var gameWasInPhase1 = gameJson.state === 'prepare';
 
@@ -204,7 +205,7 @@ $(document).ready(function () {
         var input = $(e.target);
         input.select();
         document.execCommand("copy");
-        infoMessageManager.showSuccess("Link in die Zwischenablage kopiert");
+        infoMessageManager.showSuccess("copiedToClipboard");
     });
 
     $(document).on("click", ".js-faker", function (e) {

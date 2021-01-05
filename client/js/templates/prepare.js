@@ -10,24 +10,22 @@ module.exports = Twig.twig({
         <div class="flex-item">
     
             <div class="join-container">
-                <h3>Dein Name</h3>
+                <h3>{{ lang.yourName }}</h3>
                 <input type="text" class="form-control js-name">
             </div>
     
             <div class="join-container">
-                <h3>Willst du ein Wort vorstellen?</h3>
-                <p class="description">Dein Wort sollte nicht allgemein bekannt sein. Je abstruser der Begriff, desto besser. Namen von Personen oder Wörter bei denen die Interpretationen nur in eine Richtung gegen sollten vermieden werden.</p>
-                <p class="description">Du kannst auch ohne Wort teilnehmen, dann wirst du auf jeden Fall improvisieren müssen.</p>
+                {{ lang.yourWordIntro }}
                 <label>
-                    Dein Wort
+                    {{ lang.yourWord }}
                     <input type="text" class="form-control js-word">
                 </label>
-                <button class="btn btn-secondary text-center js-join-fakers">Faker werden</button>
+                <button class="btn btn-secondary text-center js-join-fakers">{{ lang.joinFakers }}</button>
             </div>
     
             <div class="join-container">
-                <h3>Willst du mitraten?</h3>
-                <button class="btn btn-secondary text-center js-join-guessers">Guesser werden</button>
+                <h3>{{ lang.joinGuessersIntro }}</h3>
+                <button class="btn btn-secondary text-center js-join-guessers">{{ lang.joinGuessers }}</button>
             </div>
     
         </div>
@@ -41,13 +39,13 @@ module.exports = Twig.twig({
     <div class="flex-container">
     
         <div class="flex-item">
-            <label>Teile den Link und lade andere ein!
+            <label>{{ lang.share }}
                 <input type="text" class="form-control js-share" readonly value="{{ address }}">
             </label>
         </div>
     
         <div class="flex-item">
-            <button class="btn btn-primary btn-lg text-center js-start-round">Runde Starten!</button>
+            <button class="btn btn-primary btn-lg text-center js-start-round">{{ lang.startRound }}</button>
         </div>
     
     </div>

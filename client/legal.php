@@ -24,15 +24,13 @@ $lang = json_decode($languageJson, true);
 <div class="heading-container">
 
     <a href="/"><h1><?php echo $lang['mainHeading']; ?></h1>
-    <h2><?php echo $lang['subHeading']; ?></h2></a>
+        <h2><?php echo $lang['subHeading']; ?></h2></a>
 
 </div>
 
-<div class="container" id="container">
-    <?php echo $lang['introtext']; ?>
-    <div class="new-game">
-        <a href="<?php echo StringUtils::randString(6); ?>" class="btn btn-primary"><?php echo $lang['newGame']; ?></a>
-    </div>
+<div class="container legal" id="container">
+    <h1><?php echo $lang['impressum']; ?></h1>
+    <?php require_once ("legal_$language.php"); ?>
 </div>
 
 <div class="heading-container">

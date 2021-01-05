@@ -8,6 +8,9 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.HashSet
 import kotlin.reflect.KClass
 
 
@@ -79,19 +82,19 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                 "startRound" -> {
                     connections[conn]?.let { connectionInfo ->
                         if (connectionInfo.client !is Player) {
-                            sendWarning("Als Zuschauer kannst du die Runde nicht starten.", conn)
+                            sendWarning("errorStartRoundSpectator", conn)
                             return
                         }
 
                         val game = connectionInfo.game
                         if (game.fakers.size < 2) {
-                            sendWarning("Es müssen mindestens zwei Faker mitspielen!", conn)
+                            sendWarning("errorFakersMissing", conn)
                         } else if (game.phase != GamePhase.PREPARE) {
-                            sendWarning("Spiel bereits gestartet!", conn)
+                            sendWarning("errorAlreadyStarted", conn)
                         } else {
                             val fakersWithWords = game.fakers.filter { !it.word.isNullOrBlank() }
                             if (fakersWithWords.isEmpty()) {
-                                sendWarning("Kein Faker hat ein Wort gewählt.", game)
+                                sendWarning("errorEveryoneBluffing.", game)
                                 sendUpdate(game)
                                 return@let
                             }
@@ -118,7 +121,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                 "finishVoting" -> {
                     connections[conn]?.let { connectionInfo ->
                         if (connectionInfo.client !is Player) {
-                            sendWarning("Als Zuschauer kannst du die Runde nicht beenden.", conn)
+                            sendWarning("errorFinishVotingSpectator", conn)
                             return
                         }
 
@@ -227,10 +230,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
 
         val player = if (game.phase == GamePhase.GUESSING) {
             if (role != Spectator::class) {
-                sendWarning(
-                    "Das Spiel läuft bereits. Du bist jetzt Zuschauer, kannst aber nächste Runde einsteigen",
-                    conn
-                )
+                sendWarning("errorJoinLate", conn)
             }
             Spectator()
         } else when (role) {

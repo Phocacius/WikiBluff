@@ -5,10 +5,10 @@ module.exports = Twig.twig({
     allowInlineIncludes: true,
     data: `
 <div class="guesser-faker-container" id="guessers">
-    <h3>Guessers</h3>
+    <h3>{{ lang.guessers }}</h3>
 
     {% if guessers is empty %}
-        Noch keine Guessers registriert.
+        {{ lang.noGuessers }}
     {% else %}
 
         <ul class="guessers">
@@ -20,9 +20,9 @@ module.exports = Twig.twig({
 </div>
 
 <div class="guesser-faker-container" id="fakers">
-    <h3>Fakers</h3>
+    <h3>{{ lang.fakers }}</h3>
     {% if fakers is empty %}
-        Noch keine Fakers registriert.
+        {{ lang.noFakers }}
     {% else %}
         <ul class="fakers">
             {% for faker in fakers %}
