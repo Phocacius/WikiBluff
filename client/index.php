@@ -28,7 +28,7 @@ $lang = json_decode($languageJson, true);
 
 </div>
 
-<div class="container" id="container">
+<div class="container container-intro" id="container">
     <?php echo $lang['introtext']; ?>
     <div class="new-game">
         <a href="<?php echo StringUtils::randString(6); ?>" class="btn btn-primary"><?php echo $lang['newGame']; ?></a>

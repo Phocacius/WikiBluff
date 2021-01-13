@@ -3702,6 +3702,13 @@ a:hover {
   text-align: center;
 }
 
+.container-intro {
+  text-align: center;
+}
+.container-intro ul, .container-intro li {
+  text-align: center;
+}
+
 .btn {
   transition: all 500ms;
 }
