@@ -40,5 +40,9 @@ $lang = json_decode($languageJson, true);
     </div>
 </div>
 
+<?php
+require_once "matomo.php";
+?>
+
 </body>
 </html>

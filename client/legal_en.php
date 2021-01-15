@@ -172,7 +172,14 @@
 <p>We use Matomo with the "Automatically Anonymize Visitor IPs" function. This anonymization function truncates your IP address by two bytes so that it is impossible to assign it to you or to the internet connection you are using.</p>
 <p>If you do not agree to this processing, you have the option of preventing the installation of cookies by making the appropriate settings in your browser. Further details can be found in the section about cookies above.</p>
 <p>In addition, you have the option of terminating the analysis of your usage behavior by opting out. By confirming the link</p>
-<p><span style="color: #ff0000;">[HERE ADD INSERT IFRAME FROM MATOMO WITH OPT-OUT-COOKIE]</span></p>
+<p><span style="color: #ff0000;">
+
+        <iframe
+                style="border: 0; height: 200px; width: 600px;"
+                src="https://tracking.wikibluff.com/index.php?module=CoreAdminHome&action=optOut&language=de&backgroundColor=000000&fontColor=ffffff&fontSize=&fontFamily=sans-serif"
+        ></iframe>
+
+    </span></p>
 <p>a cookie is stored on your device via your browser to prevent any further analysis. Please note, however, that you must click the above link again if you delete the cookies stored on your end device.</p>
 
 <p><a href="https://www.ratgeberrecht.eu/leistungen/muster-datenschutzerklaerung.html" target="_blank" rel="noopener">Model
