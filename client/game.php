@@ -56,6 +56,10 @@ $lang = json_decode($languageJson, true);
 
 <script type="text/javascript" src="js/bundle.js"></script>
 
+<?php
+require_once "matomo.php";
+?>
+
 </body>
 </html>
 
