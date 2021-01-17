@@ -87,7 +87,8 @@ $(document).ready(function () {
 
     //The user has WebSockets, yaaaay
     var socket;
-    var host = "ws://" + serverUrl + ":" + serverPort;
+    var protocol = location.protocol.startsWith("https") ? "wss": "ws";
+    var host = protocol + "://" + serverUrl + ":" + serverPort;
     var reconnect = true;
 
     var gameId = $("body").attr("data-game");
@@ -173,7 +174,7 @@ $(document).ready(function () {
 
         } catch
             (exception) {
-            message('<p>Error' + exception);
+            console.log('Error', exception);
         }
     }
 

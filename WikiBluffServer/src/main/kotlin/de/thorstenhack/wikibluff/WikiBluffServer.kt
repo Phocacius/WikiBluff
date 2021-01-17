@@ -2,15 +2,23 @@ package de.thorstenhack.wikibluff
 
 import org.java_websocket.WebSocket
 import org.java_websocket.handshake.ClientHandshake
+import org.java_websocket.server.DefaultSSLWebSocketServerFactory
 import org.java_websocket.server.WebSocketServer
 import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
+import java.security.KeyStore
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.Properties
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
 import kotlin.reflect.KClass
 
 
@@ -30,6 +38,32 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         fun main(args: Array<String>) {
             val port = 1337
             val server = WikiBluffServer(port)
+
+            val file = File("/var/www/config.properties")
+            if (file.exists()) {
+                val fis = file.inputStream()
+                val properties = Properties().apply { load(fis) }
+
+                println("File found, using keystore " + properties.getProperty("ssl.keystore"))
+
+                val ks = KeyStore.getInstance("JKS")
+                val kf = File(properties.getProperty("ssl.keystore"))
+                ks.load(FileInputStream(kf), properties.getProperty("ssl.keyStorePassword").toCharArray())
+
+                val kmf = KeyManagerFactory.getInstance("SunX509")
+                kmf.init(ks, properties.getProperty("ssl.privateKeyPassword").toCharArray())
+                val tmf = TrustManagerFactory.getInstance("SunX509")
+                tmf.init(ks)
+
+                val sslContext = SSLContext.getInstance("TLS")
+                sslContext.init(kmf.keyManagers, tmf.trustManagers, null)
+
+                server.setWebSocketFactory(DefaultSSLWebSocketServerFactory(sslContext))
+            } else {
+                println("File not found")
+            }
+
+
             server.start()
             println("ChatServer started on port: " + server.port)
         }
