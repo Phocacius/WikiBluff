@@ -13,7 +13,7 @@ $lang = json_decode($languageJson, true);
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="<?php echo $language; ?>">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,10 +24,10 @@ $lang = json_decode($languageJson, true);
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat+Alternates:ital,wght@0,400;0,600;1,400&family=Poiret+One&display=swap"
           rel="stylesheet">
+    <link rel="alternate" hreflang="<?php echo $lang['langSwitchCode']; ?>" href="<?php echo $_SERVER['REQUEST_SCHEME'] . "://" . $_SERVER['HTTP_HOST'] . strtok($_SERVER["REQUEST_URI"], '?') . "?lang=" . $lang['langSwitchCode']; ?>">
 
 </head>
 <body data-game="<?php echo $_GET['game'] ?>" data-address="<?php echo getAddress() ?>">
-
 <div class="heading-container">
 
     <a href="/"><h1><?php echo $lang['mainHeading']; ?></h1>
