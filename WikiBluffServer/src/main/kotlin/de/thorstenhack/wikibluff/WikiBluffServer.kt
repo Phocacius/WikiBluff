@@ -5,9 +5,7 @@ import org.java_websocket.handshake.ClientHandshake
 import org.java_websocket.server.DefaultSSLWebSocketServerFactory
 import org.java_websocket.server.WebSocketServer
 import org.json.JSONObject
-import java.io.File
-import java.io.FileInputStream
-import java.io.IOException
+import java.io.*
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -31,6 +29,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
     val connections = HashMap<WebSocket, ConnectionInfo>()
     val connectionsInv = HashMap<String, HashSet<WebSocket>>()
     val games = HashMap<String, Game>()
+    var wordLogFile: String? = null
 
     companion object {
         @Throws(InterruptedException::class, IOException::class)
@@ -59,6 +58,11 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
                 sslContext.init(kmf.keyManagers, tmf.trustManagers, null)
 
                 server.setWebSocketFactory(DefaultSSLWebSocketServerFactory(sslContext))
+
+                properties.getProperty("wordLogFile")?.let {
+                    server.wordLogFile = it
+                }
+
             } else {
                 println("File not found")
             }
@@ -246,6 +250,7 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
             connections[conn] = ConnectionInfo(game, newClient)
             sendUserState(conn, gameId, newClient)
             if (role == Spectator::class) sendUpdate(game, conn) else sendUpdate(game)
+            addToList(word)
             return
         }
 
@@ -281,6 +286,16 @@ class WikiBluffServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         connectionsInv.getOrPut(gameId) { HashSet() }.add(conn)
         sendUpdate(game)
         sendUserState(conn, gameId, player)
+    }
+
+    private fun addToList(word: String?) {
+        if (word == null || wordLogFile == null) return
+        val stream = FileOutputStream(wordLogFile!!, true)
+        val writer = BufferedWriter(OutputStreamWriter(stream, "UTF-8"))
+        writer.write(word)
+        writer.newLine()
+        writer.close()
+        stream.close()
     }
 
     private fun sendUserState(conn: WebSocket, gameId: String, user: GameSubscriber) {
